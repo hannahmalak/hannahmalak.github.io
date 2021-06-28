@@ -9,6 +9,9 @@ navbar:
     - text: "GIS Work"
       icon: fa-globe
       href: geog13.html
+    - text: "Curriculum Vitae"
+      icon: fa-id-card
+      href: cv.html
 output:
   html_document:
     theme: journal
