@@ -12,6 +12,9 @@ navbar:
     - text: "Curriculum Vitae"
       icon: fa-id-card
       href: cv.html
+  right:
+    - icon: fa-github
+      href: https://github.com/hannahmalak/hannahmalak.github.io
 output:
   html_document:
     theme: journal
