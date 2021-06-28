@@ -1,0 +1,14 @@
+name: "Hannah Malak"
+output_dir: "."
+navbar:
+  title: "Hannah Malak"
+  left:
+    - text: "Home"
+      icon: fa-home
+      href: index.html
+    - text: "GIS Work"
+      icon: fa-globe
+      href: geog13.html
+output:
+  html_document:
+    theme: journal

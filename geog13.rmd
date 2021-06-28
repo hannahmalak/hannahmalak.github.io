@@ -1,0 +1,11 @@
+---
+title: "Projects"
+---
+
+In the summer of 2021, I took a class called Intro to Programming for GIS, where I learned how to use R for spatial analysis. A collection of my projects can be found below.
+
+## [Building a project website](index.html)
+
+- In this assignment, I gained familiarity with R and RStudio.
+- I also learned how to use RMarkdown to make a GitHub Pages website.
+- There is also a GitHub repository where all the code can be accessed.
