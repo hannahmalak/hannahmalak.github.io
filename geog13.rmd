@@ -11,3 +11,5 @@ In the summer of 2021, I took a class called Intro to Programming for GIS, where
 - There is also a GitHub repository where all the code can be accessed.
 
 ## [COVID 19 Pandemic Analysis](geog-13-labs/lab-02.html)
+
+## [Understanding US Borders](geog-13-labs/lab-03.html)
