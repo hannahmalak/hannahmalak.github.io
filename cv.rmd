@@ -32,7 +32,6 @@ B.A. Geography *emphasis in Geographic Information Science* **Expected: June 202
 - GIS Software (ArcGIS Pro, ArcGIS Online, QGIS)
 - R/RStudio (data wrangling, analysis, and visualization)
 - Microsoft Office (Word, PowerPoint, Excel)
-- GitHub
 
 #### Languages
 - English: Fluent
