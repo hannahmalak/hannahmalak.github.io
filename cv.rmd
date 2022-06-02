@@ -6,23 +6,38 @@ hannahmalak@ucsb.edu
 
 ## Education
 #### University of California, Santa Barbara
-B.A. Geography *emphasis in Geographic Information Science* **(2020-present)**
-
-## Research Interests
-- GIS
-- Urban Planning
-- Health Geography
-- Environmental Sociology
+B.A. Geography *emphasis in Geographic Information Science* **Expected: June 2023**
 
 ## Research Experience
-#### Research Assistant for the Eco Vista Transition Initiative
-- Co-coordinator of the Eco Vista University project
-- Member of the Isla Vista Community Plan working group
+#### Research Assistant to Professor Elizabeth Ackert:	*January 2022 - present*
+#### UC Santa Barbara Department of Geography, Santa Barbara, CA
+- Conduct literature reviews of research relating to Latino immigration, segregation, and health
+- Analyzed Census/demographic information using original R code
+
+
+## Work Experience
+#### Student Assistant: *February 2022 - present*
+#### UC Santa Barbara Natural Reserve System, Santa Barbara, CA
+- Allocate department credit card transactions in departmental financial system
+- Record minutes for quarterly advisory committee meetings
+
+#### Enumerator (Census Taker): *August 2020 - October 2020*
+#### United States Census Bureau, Los Angeles, CA
+- Conducted interviews in English and Spanish to help households complete Census forms
+- Recorded and submitted accurate data, interview information, and hours worked
+- Communicated effectively with my supervisor and other team members
+
+## Skills
+#### Technical
+- GIS Software (ArcGIS Pro, ArcGIS Online, QGIS)
+- R/RStudio (data wrangling, analysis, and visualization)
+- Microsoft Office (Word, PowerPoint, Excel)
+
+#### Languages
+- English: Fluent
+- Spanish: Intermediate
+- Persian: Intermediate
 
 ## Awards and Honors
+Jack and Laura Dangermond Undergraduate Fellowship <br /> *UCSB Geography Department* **(2022)** <br />
 Nicholas Bourdakis Memorial Award <br /> *UCSB Geography Department* **(2021)**
-  
-## Languages
-- English: Fluent
-- Persian: Proficient
-- Spanish: Proficient
