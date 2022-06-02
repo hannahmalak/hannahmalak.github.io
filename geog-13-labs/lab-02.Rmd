@@ -1,0 +1,176 @@
+---
+title: "Geography 13"
+author: "[Hannah Malak](https://hannahmalak.github.io/)"
+subtitle: 'Lab 02: COVID-19 Pandemic'
+output:
+  html_document:
+    theme: journal
+---
+
+```{r, echo=TRUE, include=FALSE}
+library(tidyverse)
+library(knitr)
+library(readxl)
+library(zoo)
+```
+
+# Data
+
+```{r, message = FALSE, warning = FALSE}
+url = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv'
+covid = read_csv(url)
+
+landData = read_csv("../data/landdata-states.csv")
+popEst = read_excel("../data/PopulationEstimates.xls", skip = 2)
+```
+
+# Question 1: Which California counties are safe?
+
+```{r, message = FALSE, warning = FALSE}
+
+# Create subset of daily new cases in California
+
+daily_new = filter(covid, state %in% c("California")) %>%
+group_by(county) %>%
+mutate(cases_new = cases - lag(cases)) %>%
+ungroup() %>%
+filter(date == max(date))
+
+# Generate table of the 5 counties with the most cumulative cases
+
+top5_cum = arrange(daily_new, -cases) %>%
+  head(n = 5) %>% 
+	select(county, cases)
+knitr::kable(top5_cum, caption = "CA's Top 5 Counties with the Most Cumulative Cases", col.names = c("County", "Cumulative Cases"))
+
+# Generate table of the 5 counties with the most new cases
+
+top5_new = arrange(daily_new, -cases_new) %>%
+  head(n = 5) %>%
+	select(county, cases_new)
+knitr::kable(top5_new, caption = "CA's Top 5 Counties with the Most New Cases", col.names = c("County", "New Cases"))
+
+# Join the population data with the COVID data
+
+population_estimates = read_excel("~/geog-13-labs/data/PopulationEstimates.xls", skip = 2) %>% 
+select(pop_2019 = POP_ESTIMATE_2019, State, fips = FIPStxt)
+
+population_interest = population_estimates %>% filter(State == "CA")
+
+cases_per_capita = right_join(daily_new, population_estimates, by = "fips") %>% 
+  mutate(cum_cases_per_capita = (cases / pop_2019) * 100000) %>% 
+  mutate(new_cases_per_capita = (cases_new / pop_2019) * 100000)
+
+# Generate table of the 5 counties with the most cumulative cases per capita
+
+top5_cum_per_capita = arrange(cases_per_capita, -cum_cases_per_capita) %>%
+  head(n = 5) %>% 
+	select(county, cum_cases_per_capita)
+
+knitr::kable(top5_cum_per_capita, caption = "CA's Top 5 Counties with the Most Cumulative Cases Per Capita", col.names = c("County", "Cumulative Cases Per Capita"))
+
+# Generate table of the 5 counties with the most new cases per capita
+
+top5_new_per_capita = arrange(cases_per_capita, -new_cases_per_capita) %>%
+  head(n = 5) %>% 
+	select(county, new_cases_per_capita)
+
+knitr::kable(top5_new_per_capita, caption = "CA's Top 5 Counties with the Most New Cases Per Capita", col.names = c("County", "New Cases Per Capita"))
+
+# Finding total cases in last 14 days
+
+cases_per_capita_recent = right_join(population_estimates, covid, by = "fips") %>%
+  filter(state == "California") %>%
+  filter(date >= max(date) - 13)
+
+tot_cases = cases_per_capita_recent %>% 
+  group_by(county) %>% 
+  summarize(tot = sum(cases, na.rm = TRUE)) %>% 
+  ungroup()
+
+counties = cases_per_capita_recent %>%
+  group_by(county, pop_2019) %>%
+  mutate(cases_new = max(cases) - min(cases), cases_new_per_capita = (cases_new / pop_2019) * 100000) %>%
+  ungroup()
+
+day14_new = cases_per_capita_recent %>% 
+ group_by(county, pop_2019) %>% 
+ slice_max(cases, n=14) %>% 
+ arrange(-cases)
+```
+
+## Overview of safe counties + new and cumulative cases:
+#### As of `r as.Date(max(cases_per_capita_recent$date))`, there are `r format(max(tot_cases$tot))` cumulative coronavirus cases in CA, of which `r format(day14_new[[7]][1] - day14_new[[7]][14])` are new.
+#### Per California Department of Public Health standards, there are `r length(filter(counties, cases_new_per_capita < 100)$county)` safe counties.
+
+# Question 2: What is the impact of scale on data interpretation?
+
+```{r, message = FALSE, warning = FALSE}
+
+# Set up states of interest
+
+states_of_interest <- c("New York", "California", "Louisiana", "Florida")
+states_of_interest_abbr <- c("NY", "CA", "LA", "FL")
+
+# Modify data and filter for states of interest
+
+multi_cases = covid %>% filter(state %in% states_of_interest) %>% 
+  group_by(fips) %>% 
+  mutate(cases_new = cases - lag(cases)) %>% 
+  ungroup() %>%
+  group_by(state, date) %>%
+  summarize(cases = sum(cases, na.rm = TRUE)) %>% 
+  mutate(daily_new_cases = cases - lag(cases), RollMean7 = rollmean(daily_new_cases, 7, fill = NA, align = "right")) %>%
+  ungroup()
+
+# Plot the 'new cases' data
+
+multi_cases %>%
+  ggplot(aes(x = date, y = daily_new_cases)) +
+  geom_line(aes(col=state)) +
+  geom_line(aes(y = RollMean7), col = "grey55", size = 0.5) +
+  ggthemes::theme_calc() +
+  facet_wrap(~state) +
+  labs(title = "Daily New Cases",
+       x = "Date",
+       y = "Cases",
+       subtitle = "New York Times Data")
+
+# Join the state COVID data to the USDA population estimates
+
+int_join = covid %>%
+  filter(state %in% states_of_interest) %>%
+  right_join(population_estimates, by = "fips")
+
+# Modify the data to get per capita cases
+
+multi_cases_2 = population_estimates %>% 
+  filter(State %in% states_of_interest_abbr) %>% 
+  group_by(State) %>%
+  summarize(pop_2019 = max(pop_2019)) %>%
+  right_join(int_join, by = "State") %>% 
+  ungroup() %>% 
+  filter(state %in% states_of_interest) %>%
+  group_by(pop_2019.x, state, date) %>% 
+  summarize(cases = max(cases)) %>%
+  mutate(daily_new_cases = cases - lag(cases),
+         daily_new_cases_pc = daily_new_cases / pop_2019.x,
+         RollMean7 = rollmean(daily_new_cases_pc, 7, fill = NA, align = "right")) %>%
+  filter(RollMean7 != "NA") %>%
+  ungroup()
+
+# Plot the 'new cases per capita' data
+
+multi_cases_2 %>%
+  ggplot(aes(x = date, y = daily_new_cases_pc)) +
+  geom_line(aes(col = state)) +
+  geom_line(aes(y = RollMean7), col = "grey55", size = 0.5) +
+  ggthemes::theme_calc() +
+  facet_wrap(~state) +
+  labs(title = "Daily New Cases Per Capita",
+       x = "Date",
+       y = "Cases Per Capita ",
+       subtitle = "New York Times Data")
+```
+
+### Scaling by population has a significant effect on the analysis of this data. For example, based on the "Daily New Cases" chart alone, you might assume that New York had a much higher rate of COVID cases than Louisiana. However, the "Daily New Cases Per Capita" chart shows that Louisiana had a very similar per capita rate of COVID in relation to New York.

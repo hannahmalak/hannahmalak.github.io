@@ -1,0 +1,348 @@
+---
+title: "Geography 13"
+author: "[Hannah Malak](https://hannahmalak.github.io/)"
+subtitle: 'Lab 04: Tessellations and Point-in-Polygon'
+output:
+  html_document:
+    theme: journal
+---
+
+# Libraries
+
+```{r, warning = FALSE, message = FALSE}
+
+library(tidyverse)
+library(sf)
+
+library(USAboundaries)
+library(USAboundariesData)
+library(readxl)
+
+library(leaflet)
+library(readxl)
+library(knitr)
+library(rmapshaper)
+library(gghighlight)
+library(ggplot2)
+library(units)
+
+```
+
+# Question 1
+
+```{r, message = FALSE, warning = FALSE}
+
+# Step 1.1
+
+CONUS = USAboundaries::us_counties() %>% 
+  filter(!state_name %in% c("Alaska", "Hawaii", "Puerto Rico")) %>% 
+  st_transform(5070)
+
+# Step 1.2
+
+centroids = CONUS %>% 
+  st_centroid() %>% 
+  st_combine() %>% 
+  st_cast("MULTIPOINT")
+
+# Step 1.3
+
+voronoi = st_voronoi(centroids) %>% 
+  st_cast() %>% 
+  st_as_sf() %>% 
+  mutate(id = 1:n())
+
+triangulated = st_triangulate(centroids) %>% 
+  st_cast() %>% 
+  st_as_sf() %>% 
+  mutate(id = 1:n())
+
+gridded = st_make_grid(CONUS, n = 70) %>% 
+  st_cast() %>% 
+  st_as_sf() %>% 
+  mutate(id = 1:n())
+
+hex = st_make_grid(CONUS, n = 70, square = FALSE) %>% 
+  st_cast() %>% 
+  st_as_sf() %>% 
+  mutate(id = 1:n())
+
+# Step 1.4
+
+CONUS_union = us_counties() %>% 
+  filter(!state_name %in% c("Alaska", "Hawaii", "Puerto Rico")) %>% 
+  st_transform(5070) %>% 
+  st_union()
+
+# Step 1.5
+
+CONUS_union_simple = CONUS_union %>% 
+  rmapshaper::ms_simplify(keep = 0.1)
+
+mapview::npts(CONUS_union)
+mapview::npts(CONUS_union_simple)
+
+```
+
+#### By using the ms_simplify function to simplify the geometry, I reduced the amount of points from 3229 to 322. This means that the geometry is less complex, but a less complex geometry means that computations will be faster.
+
+```{r, message = FALSE, warning = FALSE}
+
+# Step 1.5
+
+voronoi_crop = st_intersection(voronoi, CONUS_union_simple)
+
+triangulated_crop = st_intersection(triangulated, CONUS_union_simple)
+
+gridded_crop = st_intersection(gridded, CONUS_union_simple)
+
+hex_crop = st_intersection(hex, CONUS_union_simple)
+
+# Step 1.6
+
+tessellation_plot = function(data, title){
+  ggplot() +
+    geom_sf(data = data, fill = "white", col = "navy", size = .2) +
+    theme_void() +
+    labs(title = title,
+         caption = paste("There are", nrow(data), "tiles in this tessellation."))
+}
+
+# Step 1.7
+
+tessellation_plot(CONUS, "Original Counties")
+
+tessellation_plot(voronoi_crop, "Voronoi")
+
+tessellation_plot(triangulated_crop, "Triangulated")
+
+tessellation_plot(gridded_crop, "Square")
+
+tessellation_plot(hex_crop, "Hexagonal")
+
+```
+
+# Question 2
+
+```{r, message = FALSE, warning = FALSE}
+
+#Step 2.1
+
+tessellation_sum = function(data, title){
+  area = st_area(data) %>% 
+    set_units("km2") %>% 
+    drop_units()
+  data.frame(title, 
+             nrow(data), 
+             mean(area), 
+             sd(area), 
+             sum(area))
+}
+
+# Step 2.2
+
+tessellation_sum(CONUS, "Original Counties")
+
+tessellation_sum(voronoi_crop, "Voronoi")
+
+tessellation_sum(triangulated_crop, "Triangulated")
+
+tessellation_sum(gridded_crop, "Square")
+
+tessellation_sum(hex_crop, "Hexagonal")
+
+# Step 2.3
+
+tessellation_summary = bind_rows(
+  tessellation_sum(CONUS, "Original Counties"),
+  tessellation_sum(voronoi_crop, "Voronoi"),
+  tessellation_sum(triangulated_crop, "Triangulated"),
+  tessellation_sum(gridded_crop, "Square"),
+  tessellation_sum(hex_crop, "Hexagonal")
+)
+
+# Step 2.4
+
+knitr::kable(tessellation_summary,
+             caption = "Tessellation Summary",
+             col.names = c("Tessellation Type",
+                           "Number of Tiles",
+                           "Mean Area",
+                           "Standard Deviation",
+                           "Total Area"))
+
+# Step 2.5
+
+```
+
+#### The Modifiable Areal Unit Problem (MAUP) is a problem that arises due to the fact that areal units are often arbitrary in spatial analysis. When areal units are arbitary, the MAUP causes statistical bias. The different types of polygons and tessellations used here have different strengths and weaknesses in terms of point-in-polygon analysis and computational efficiency. For example, the voronoi tessellation reduces the standard deviation in area, which is helpful in getting a more accurate analysis. The triangulated tessellation does this as well. However, the triangulated tessellation has a lot of elements, which means that it will take longer to compute. The square and hexagonal tessellations are notable in that they have the lowest standard deviations, which aids in producing a more accurate analysis.
+
+# Question 3
+
+```{r, message = FALSE, warning = FALSE}
+
+# Step 3.1
+
+NID = read_excel("../data/NID2019_U.xlsx") %>% 
+  filter(!is.na(LONGITUDE)) %>% 
+  filter(!is.na(LATITUDE)) %>% 
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>% 
+  st_transform(5070)
+
+# Step 3.2
+
+PIP = function(points, polygons, id){
+  st_join(polygons, points) %>% 
+    st_drop_geometry() %>% 
+    dplyr::count(.data[[id]]) %>% 
+    left_join(polygons, by = id) %>% 
+    st_as_sf()
+}
+
+# Step 3.3
+
+CONUS_PIP = PIP(NID, CONUS, "geoid")
+
+voronoi_PIP = PIP(NID, voronoi_crop, "id")
+
+triangulated_PIP = PIP(NID, triangulated_crop, "id")
+
+gridded_PIP = PIP(NID, gridded_crop, "id")
+
+hex_PIP = PIP(NID, hex_crop, "id")
+
+# Step 3.4
+
+plot_PIP = function(data, title){
+  ggplot() +
+    geom_sf(data = data, aes(fill = n), size = .2, col = NA) +
+    scale_fill_viridis_c() +
+    theme_void() +
+    labs(title = title,
+         caption = sum(data$n))
+}
+
+# Step 3.5
+
+plot_PIP(CONUS_PIP, "Dams in Each County")
+
+plot_PIP(voronoi_PIP, "Dams in Each Voronoi Tile")
+
+plot_PIP(triangulated_PIP, "Dams in Each Triangulation Tile")
+
+plot_PIP(gridded_PIP, "Dams in Each Square Tile")
+
+plot_PIP(hex_PIP, "Dams in Each Hexagonal Tile")
+
+# Step 3.6
+
+```
+
+#### Each tessellated surface represents the point counts differently. This is due to the fact that each tessellation has different sized polygons. The largely arbitrary size and placement of these polygons produces the Modifiable Areal Unit Problem (MAUP). Moving forward, I will be using voronoi tessellations due to the fact that it shows the most amount of variance for the data in the maps above.
+
+# Question 4
+
+```{r, message = FALSE, warning = FALSE}
+
+# Step 4.1
+
+NID_dams = read_xlsx("../data/NID2019_U.xlsx") %>% 
+  filter(!is.na(LONGITUDE), !is.na(LATITUDE)) %>% 
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>% 
+  st_transform(5070)
+
+NID_classifier = data.frame(abbr = c("C", "P", "F", "D"),
+                            purpose = c("Flood Control", 
+                                        "Fire Protection", 
+                                        "Fish and Wildlife", 
+                                        "Debris Control"))
+
+dams_purpose = strsplit(NID_dams$PURPOSES, split = "") %>%
+  unlist() %>% 
+  table() %>% 
+  as.data.frame() %>% 
+  setNames(c("abbr", "count")) %>% 
+  left_join(NID_classifier) %>% 
+  mutate(lab = paste0(purpose, "\n(", abbr, ")"))
+
+dams_c = NID_dams %>% 
+  dplyr::filter(grepl("C", NID_dams$PURPOSES))
+
+dams_c_PIP = PIP(dams_c, voronoi_crop, "id")
+
+dams_p = NID_dams %>% 
+  dplyr::filter(grepl("P", NID_dams$PURPOSES))
+
+dams_p_PIP = PIP(dams_p, voronoi_crop, "id")
+
+dams_f = NID_dams %>% 
+  dplyr::filter(grepl("F", NID_dams$PURPOSES))
+
+dams_f_PIP = PIP(dams_f, voronoi_crop, "id")
+
+dams_d = NID_dams %>% 
+  dplyr::filter(grepl("D", NID_dams$PURPOSES))
+
+dams_d_PIP = PIP(dams_d, voronoi_crop, "id")
+
+# Step 4.2
+
+plot_PIP_highlight = function(data, title){
+  ggplot() +
+    geom_sf(data = data, aes(fill = n), size = .2, col = NA) +
+    scale_fill_viridis_c() +
+    theme_void() +
+    labs(title = title,
+         caption = sum(data$n))
+}
+
+plot_PIP_highlight(dams_c_PIP, "Flood Control Dams") +
+  gghighlight(n > mean(n) + sd(n))
+
+plot_PIP_highlight(dams_p_PIP, "Fire Protection Dams") +
+  gghighlight(n > mean(n) + sd(n))
+
+plot_PIP_highlight(dams_f_PIP, "Fish and Wildlife Dams") +
+  gghighlight(n > mean(n) + sd(n))
+
+plot_PIP_highlight(dams_d_PIP, "Debris Control Dams") +
+  gghighlight(n > mean(n) + sd(n))
+
+# Step 4.3
+
+```
+
+#### The geographic distribution of the different types of dams does make sense in some cases. For example, flood control dams are found most often near the various tributaries to the Mississippi river. The fish and wildlife dams seem to be spread more evenly accross the United States, which seems reasonable. In other cases, the geographic distribution of the dams is less clear. For example, I was surprised to see so many fire protection dams in the northern parts of the United States. I was surprised because these areas tend to not be as fire prone as places like California, for example. I also wasn't sure about the reason for the distribution of debris control dams. Perhaps, if I had used a different tessellation, the analysis would have yielded different results that would have made more sense.
+
+# Extra Credit
+
+```{r, message = FALSE, warning = FALSE}
+
+mississippi = read_sf("../data/majorrivers_0_0") %>% 
+  filter(SYSTEM == "Mississippi")
+
+dams = read_xlsx("../data/NID2019_U.xlsx") %>% 
+  filter(!is.na(LONGITUDE), !is.na(LATITUDE)) %>% 
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
+
+largest_nid_storage = dams %>% 
+  filter(!STATE %in% c("AK", "PR", "HI")) %>% 
+  filter(HAZARD == "H") %>% 
+  group_by(STATE) %>% 
+  slice_max(NID_STORAGE, n = 1) %>% 
+  select("DAM_NAME", "NID_STORAGE", "PURPOSES", "YEAR_COMPLETED")
+
+leaflet() %>% 
+  addProviderTiles(providers$CartoDB) %>% 
+  addPolylines(data = mississippi) %>% 
+  addCircleMarkers(data = largest_nid_storage,
+                   radius = ~NID_STORAGE / 15000000,
+                   color = "red",
+                   fillOpacity = 1,
+                   stroke = FALSE,
+                   popup = leafpop::popupTable(
+                     st_drop_geometry(largest_nid_storage[1:4]), 
+                     feature.id = FALSE, row.number = FALSE))
+
+```
+
