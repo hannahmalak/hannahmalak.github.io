@@ -20,8 +20,9 @@ library(zoo)
 url = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv'
 covid = read_csv(url)
 
-landData = read_csv("../data/landdata-states.csv")
-popEst = read_excel("../data/PopulationEstimates.xls", skip = 2)
+setwd("/Users/Hannah/github/geog-13-labs/data")
+landData = read_csv("landdata-states.csv")
+popEst = read_excel("PopulationEstimates.xls", skip = 2)
 ```
 
 # Question 1: Which California counties are safe?
@@ -52,7 +53,8 @@ knitr::kable(top5_new, caption = "CA's Top 5 Counties with the Most New Cases", 
 
 # Join the population data with the COVID data
 
-population_estimates = read_excel("~/geog-13-labs/data/PopulationEstimates.xls", skip = 2) %>% 
+setwd("/Users/Hannah/github/geog-13-labs/data")
+population_estimates = read_excel("PopulationEstimates.xls", skip = 2) %>% 
 select(pop_2019 = POP_ESTIMATE_2019, State, fips = FIPStxt)
 
 population_interest = population_estimates %>% filter(State == "CA")
